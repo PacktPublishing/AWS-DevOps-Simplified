@@ -1,0 +1,23 @@
+version: 0.2 
+phases:
+  install:
+    runtime-versions:
+      java: openjdk8
+    on-failure: ABORT
+    commands:
+      - mkdir -p /tmp/some_tmp_dir
+      - CWD=$(pwd)
+      - cd /tmp/some_tmp_dir
+      - curl -L https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64 > hadolint
+      - chmod +x hadolint
+      - mv hadolint /usr/local/bin/
+      - cd $CWD
+
+  build:
+    on-failure: ABORT 
+    commands: 
+      - hadolint Dockerfile
+
+artifacts: 
+  files: 
+    - '**/*'

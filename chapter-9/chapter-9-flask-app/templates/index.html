@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <meta charset="UTF-8">
+    <title>FlaskApp</title>
+    <style>
+        .todo {
+            padding: 20px;
+            margin: 10px;
+            background-color: #eee;
+        }
+    </style>
+</head>
+<body class="container">
+    <h3>Todo List Manager (AWS DevOps Simplified)</h1>
+    <hr>
+    <div class="container">
+    <form method="post">
+        <div class="form-group">
+            <label for="todo">Todo Item</label>
+            <input id="todo" type="text" name="todo" placeholder="Enter your todo task as free text here" class="form-control"></input>
+        </div>
+        <div class="form-group">
+            <div class="form-check">
+                <input id="tasktype-imp" name="tasktype" required type="radio" value="Important" class="form-check-input">
+                <label for="tasktype-unimp" class="form-check-label">Important</label>
+            </div>
+            <div class="form-check">
+                <input id="tasktype-unimp" name="tasktype" required type="radio" value="Unimportant" class="form-check-input">
+                <label for="tasktype-unimp" class="form-check-label">Un-important</label>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
+    </div>
+    <div class="d-flex" style="height: 100px;">
+        <div class="vr"></div>
+      </div>
+    <div class="container">
+            <table class="table table-striped">
+                <thead>
+                <tr>
+                    <th scope="col">Task</th>
+                    <th scope="col">Type</th>
+                    <th scope="col">Action</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for todo in all_todos %}
+                <tr>
+                    <td>{{todo['todo']}}</td>
+                    <td>{{todo['tasktype']}}</td>
+                    <td>
+                        <form method="POST" action = "{{ url_for('delete', id=todo['_id']) }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" value="Delete Task" onclick="return confirm('Are you sure you want to remove this task?')">Delete Task</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.14.7/dist/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+</body>
+</html>

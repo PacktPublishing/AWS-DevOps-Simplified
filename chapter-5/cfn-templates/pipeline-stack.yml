@@ -1,0 +1,319 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: "CodePipeline for rolling out application stack changes"
+
+Parameters:
+  BranchName:
+    Description: CodeCommit branch name
+    Type: String
+    Default: main
+  RepositoryName:
+    Description: CodeComit repository name
+    Type: String
+    Default: aws-devops-simplified-sample-application
+  ApplicationStackName:
+    Description: Name of the Cloudformation stack that deployed application resources
+    Type: String
+
+Resources:
+  # S3ApplicationArtifactsBucket:
+  #   Type: AWS::S3::Bucket
+  #   Properties: 
+  #     AccessControl: Private
+  #     VersioningConfiguration:
+  #       Status: Enabled
+
+  S3PipelineArtifactsBucket:
+    Type: AWS::S3::Bucket
+    Properties: 
+      AccessControl: Private
+      VersioningConfiguration:
+        Status: Enabled
+
+  CodeCommitRepository:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: !Ref RepositoryName
+
+  CodePipelineServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: AWS-DevOps-Simplified-CodePipeline-ServiceRole
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - codepipeline.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        -
+          PolicyName: AWS-DevOps-Simplified-CodePipeline-Service-Role-Policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              -
+                Effect: Allow
+                Action:
+                  - codecommit:CancelUploadArchive
+                  - codecommit:GetBranch
+                  - codecommit:GetCommit
+                  - codecommit:GetUploadArchiveStatus
+                  - codecommit:UploadArchive
+                Resource: '*'
+              -
+                Effect: Allow
+                Action:
+                  - codebuild:BatchGetBuilds
+                  - codebuild:StartBuild
+                Resource: '*'
+              -
+                Effect: Allow
+                Action:
+                  - codedeploy:*
+                Resource: '*'                
+              - 
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:ListBucket
+                Resource:                 
+                  - Fn::Sub: 'arn:aws:s3:::${S3PipelineArtifactsBucket}/*'
+                  - Fn::Sub: 'arn:aws:s3:::${S3PipelineArtifactsBucket}'
+              -
+                Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource: '*'
+
+  ApplicationChangeRolloutPipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: Application-Rollout-Pipeline
+      RoleArn:
+        !GetAtt CodePipelineServiceRole.Arn
+      Stages:
+        - Name: SourceCode
+          Actions:
+            - 
+              Name: SourceAction
+              ActionTypeId: 
+                Category: Source 
+                Owner: AWS 
+                Version: 1 
+                Provider: CodeCommit 
+              OutputArtifacts: 
+                - Name: SourceOutput00
+              Configuration: 
+                BranchName: !Ref BranchName 
+                RepositoryName: !Ref RepositoryName
+                PollForSourceChanges: true
+              RunOrder: 1
+        - Name: PrepareBuildArchives
+          Actions: 
+            - 
+              Name: PrepareBuildArchive
+              InputArtifacts:
+                - Name: SourceOutput00
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              OutputArtifacts:
+                - Name: BuildOutput00
+              Configuration:
+                ProjectName:
+                  Ref: BuildApplicationArchive
+              RunOrder: 1
+        - Name: DeployApplicationRevision
+          Actions: 
+            - 
+              Name: DeployApplicationRevision
+              InputArtifacts:
+                - Name: BuildOutput00
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CodeDeploy
+              Configuration:
+                ApplicationName:
+                  Ref: CodeDeployApplication
+                DeploymentGroupName:
+                  Ref: CodeDeployDeploymentGroup
+              RunOrder: 1
+      ArtifactStores:
+        - ArtifactStore:
+            Type: S3
+            Location:
+              Ref: S3PipelineArtifactsBucket
+          Region: eu-central-1
+
+  CodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: 'AWS-DevOps-Simplfied-CodeBuild-Role'
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - codebuild.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /service-role/
+      Policies:
+        - PolicyName: AWS-DevOps-Simplfied-CodeBuild-Role-Policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: Allow
+                Action: iam:ListPolicies
+                Resource: "*"
+              -
+                Effect: Allow
+                Action: sts:GetCallerIdentity
+                Resource: "*"
+              -
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - Fn::Sub: 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/*'
+              -
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:ListBucket
+                Resource:
+                  - Fn::Sub: 'arn:aws:s3:::${S3PipelineArtifactsBucket}/*'
+                  - Fn::Sub: 'arn:aws:s3:::${S3PipelineArtifactsBucket}'                
+                  # - Fn::Sub: 'arn:aws:s3:::${S3ApplicationArtifactsBucket}/*'
+                  # - Fn::Sub: 'arn:aws:s3:::${S3ApplicationArtifactsBucket}'
+
+
+  BuildApplicationArchive:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: PrepareBuildArchive-Project
+      Description: Build archive for test application stack
+      ServiceRole:
+        !GetAtt CodeBuildRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:4.0
+        EnvironmentVariables:
+          - Name: REGION
+            Value: 'eu-central-1'        
+          # - Name: APPLICATION_ARTIFACT_STORE_S3_LOCATION
+          #   Value: !Ref S3ApplicationArtifactsBucket
+      Source:
+        Type: CODEPIPELINE
+      TimeoutInMinutes: 15
+
+  CodeDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: 'AWS-DevOps-Simplfied-CodeDeploy-Role'
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - codedeploy.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /service-role/
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole"
+      Policies:
+        - PolicyName: AWS-DevOps-Simplfied-CodeDeploy-Role-Policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: Allow
+                Action: iam:PassRole
+                Resource: "*"
+              -
+                Effect: Allow
+                Action: sts:GetCallerIdentity
+                Resource: "*"
+              -
+                Effect: Allow
+                Action:
+                  - ec2:RunInstances
+                  - ec2:CreateTags
+                Resource: "*"
+              -
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:ListBucket
+                Resource:
+                  - Fn::Sub: 'arn:aws:s3:::${S3PipelineArtifactsBucket}/*'
+                  - Fn::Sub: 'arn:aws:s3:::${S3PipelineArtifactsBucket}'
+                  # - Fn::Sub: 'arn:aws:s3:::${S3ApplicationArtifactsBucket}/*'
+                  # - Fn::Sub: 'arn:aws:s3:::${S3ApplicationArtifactsBucket}'                  
+
+  CodeDeployApplication:
+    Type: AWS::CodeDeploy::Application
+    Properties:
+      ComputePlatform: Server
+      ApplicationName: AWS-DevOps-Simplfied-CodeDeploy-Application
+  
+  CodeDeployDeploymentGroup:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    Properties:
+      ApplicationName: !Ref CodeDeployApplication
+      AutoScalingGroups:
+        - Fn::ImportValue:
+            'Fn::Sub': "${ApplicationStackName}-auto-scaling-group"
+      DeploymentConfigName: "CodeDeployDefault.OneAtATime"
+      Ec2TagFilters:
+        - Type: KEY_ONLY
+          Key: aws-cloudformation:stack-id
+      # DeploymentStyle:
+      #   DeploymentOption: "WITH_TRAFFIC_CONTROL"
+      #   DeploymentType: "BLUE_GREEN"
+      LoadBalancerInfo:
+        ElbInfoList:
+          -
+            Name: 
+              Fn::ImportValue:
+                'Fn::Sub': "${ApplicationStackName}-alb-name"
+        # TargetGroupInfoList:
+        #   -
+        #     Name: 
+        #       Fn::ImportValue:
+        #         'Fn::Sub': "${ApplicationStackName}-target-group-name"
+      ServiceRoleArn: !GetAtt CodeDeployRole.Arn
+
+  CodeDeployDeploymentConfig:
+    Type: AWS::CodeDeploy::DeploymentConfig
+    Properties:
+      ComputePlatform: Server
+      MinimumHealthyHosts:
+        Value: 1
+        Type: HOST_COUNT
+

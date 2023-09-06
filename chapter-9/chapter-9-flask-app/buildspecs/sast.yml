@@ -1,0 +1,17 @@
+version: 0.2 
+phases:
+  install:
+    runtime-versions:
+      python: 3.7
+    on-failure: ABORT
+    commands:
+      - pip install bandit
+
+  build:
+    on-failure: ABORT 
+    commands: 
+      - bandit app.py --severity-level all
+
+artifacts: 
+  files: 
+    - '**/*'

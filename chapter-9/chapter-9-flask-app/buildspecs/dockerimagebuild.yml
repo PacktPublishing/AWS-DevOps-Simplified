@@ -1,0 +1,19 @@
+version: 0.2 
+phases:
+  install:
+    runtime-versions:
+      java: openjdk8
+    on-failure: ABORT
+    commands:
+      - echo "Proceed with docker image build"
+
+  build:
+    on-failure: ABORT 
+    commands: 
+      - docker build --no-cache -t ${ECR_REPO_URL} .
+      - aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REPO_URL}
+      - docker image push ${ECR_REPO_URL}:latest
+
+artifacts: 
+  files: 
+    - '**/*'

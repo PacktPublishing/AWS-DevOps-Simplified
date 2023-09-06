@@ -1,0 +1,30 @@
+{
+    "variables": {
+        "region": "eu-central-1"
+    },
+    "builders": [
+        {
+            "ami_name": "aws-devops-simplified-packer-{{timestamp}}",
+            "instance_type": "t3.micro",
+            "vpc_id": "VPC_ID_REPLACE_ME",
+            "subnet_id": "SUBNET_ID_REPLACE_ME",
+            "source_ami_filter": {
+              "filters": {
+              "virtualization-type": "hvm",
+              "name": "al2023-ami-2023.1.20230725.0-kernel-6.1-x86_64",
+              "root-device-type": "ebs"
+              },
+              "owners": ["137112412989"],
+              "most_recent": true
+            },
+            "ssh_username": "ec2-user",
+            "type": "amazon-ebs"
+        }
+    ],
+    "provisioners": [
+        {
+            "type": "shell",
+            "script": "./scripts/server-provision.sh"
+        }
+    ]
+}

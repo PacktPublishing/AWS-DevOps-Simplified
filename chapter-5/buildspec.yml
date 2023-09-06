@@ -1,0 +1,19 @@
+version: 0.2 
+phases:
+  install:
+    runtime-versions:
+      golang: 1.14
+    on-failure: ABORT
+    commands:
+      - git clone https://github.com/aws-samples/aws-codedeploy-appspec-assistant.git
+      - cd aws-codedeploy-appspec-assistant/aws-codedeploy-appspec-assistant
+      - go build -o /usr/local/bin/appSpecAssistant
+
+  build:
+    on-failure: ABORT 
+    commands: 
+      - appSpecAssistant validate --filePath ../../appspec.yml --computePlatform server
+
+artifacts: 
+  files: 
+    - '**/*'

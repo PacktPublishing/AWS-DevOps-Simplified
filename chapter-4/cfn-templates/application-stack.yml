@@ -1,0 +1,176 @@
+Description: This is a Cloudformation template that deploys an auto-scaling group 
+  of two EC2 instances based on a pre-baked AMI. These instances are then
+  exposed to the end-user with an Application Load Balancer. For networking constructs,
+  this stack expects VPC and Subnet identifiers coming from another stack that would
+  have been deployed before this one.
+Parameters:
+  NetworkStackName:
+    Description: This parameter identifies the name of the network stack.
+    Type: String
+  AMIId:
+    Description: AMI ID used to create a test EC2 instance
+    Type: String
+  InstanceType:
+    Description: EC2 Instance Type
+    Type: String
+    Default: t3.micro
+  AutoScalingGroupMinSize:
+    Description: Min number of instances to maintain in the ASG
+    Type: Number
+    Default: 2
+  AutoScalingGroupMaxSize:
+    Description: Max number of instances to maintain in the ASG
+    Type: Number
+    Default: 4
+Resources:
+  AppLoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    DependsOn: AppLoadBalancer
+    Properties:
+      Protocol: HTTP
+      Port: 80
+      LoadBalancerArn: !Ref AppLoadBalancer
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref InstanceTargetGroup
+  InstanceTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckEnabled: true
+      TargetType: instance
+      Protocol: HTTP
+      Port: 8080
+      VpcId:
+        Fn::ImportValue:
+          'Fn::Sub': "${NetworkStackName}-vpc-id"
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref InstanceProfileRole
+  InstanceProfileRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: AWS-DevOps-Simplified-Instance-Profile-Role
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+      Policies:
+        -
+          PolicyName: AWS-DevOps-Simplified-Instance-Profile-Role-Policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              -
+                Effect: Allow
+                Action:
+                  - s3:*
+                Resource: '*'
+  AppLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: !Sub ${AWS::StackName}-launch-template
+      LaunchTemplateData:
+        IamInstanceProfile:
+          Arn: !GetAtt InstanceProfile.Arn
+        ImageId: !Ref AMIId
+        InstanceType: !Ref InstanceType
+        SecurityGroupIds:
+          - !Ref AppInstanceSecurityGroup
+  AppInstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    DependsOn: AppLoadBalancerSecurityGroup
+    Properties:
+      GroupDescription: This is the Security Group for application instance
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          SourceSecurityGroupId: !Ref AppLoadBalancerSecurityGroup
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 0
+          ToPort: 65535
+          CidrIp: 0.0.0.0/0
+      VpcId:
+        Fn::ImportValue:
+          'Fn::Sub': "${NetworkStackName}-vpc-id"
+  AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      MinSize: !Ref AutoScalingGroupMinSize
+      MaxSize: !Ref AutoScalingGroupMaxSize
+      TargetGroupARNs:
+        - !Ref InstanceTargetGroup
+      VPCZoneIdentifier:
+        - Fn::ImportValue:
+            'Fn::Sub': "${NetworkStackName}-private-subnet1"
+        - Fn::ImportValue:
+            'Fn::Sub': "${NetworkStackName}-private-subnet2"
+      LaunchTemplate:
+        LaunchTemplateId: !Ref AppLaunchTemplate
+        Version: !GetAtt AppLaunchTemplate.LatestVersionNumber
+  AppLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Type: application
+      Scheme: internet-facing
+      Subnets:
+        - Fn::ImportValue:
+            'Fn::Sub': "${NetworkStackName}-public-subnet1"
+        - Fn::ImportValue:
+            'Fn::Sub': "${NetworkStackName}-public-subnet2"
+      SecurityGroups:
+        - !Ref AppLoadBalancerSecurityGroup
+  AppLoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: This is the Security Group for ALB
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 0
+          ToPort: 65535
+          CidrIp: 0.0.0.0/0
+      VpcId:
+        Fn::ImportValue:
+          'Fn::Sub': "${NetworkStackName}-vpc-id"
+Outputs:
+  AppLoadBalancerName:
+    Description: A reference to the ALB Name
+    Value: !GetAtt AppLoadBalancer.LoadBalancerName
+    Export:
+      Name: !Join [ "-", [ !Ref "AWS::StackName", alb-name ] ]
+  AppLoadBalancerDNS:
+    Description: A reference to the ALB Domain Name
+    Value: !GetAtt AppLoadBalancer.DNSName
+    Export:
+      Name: !Join [ "-", [ !Ref "AWS::StackName", alb-dns ] ]
+  AppLoadBalancerARN:
+    Description: A reference to the ALB ARN
+    Value: !Ref AppLoadBalancer
+    Export:
+      Name: !Join [ "-", [ !Ref "AWS::StackName", alb-arn ] ]
+  AutoScalingGroup:
+    Description: A reference to the Auto Scaling Group
+    Value: !Ref AutoScalingGroup
+    Export:
+      Name: !Join [ "-", [ !Ref "AWS::StackName", auto-scaling-group ] ]
+  InstanceTargetGroupName:
+    Description: A reference to the Target Group Name
+    Value: !GetAtt InstanceTargetGroup.TargetGroupName
+    Export:
+      Name: !Join [ "-", [ !Ref "AWS::StackName", target-group-name ] ]
