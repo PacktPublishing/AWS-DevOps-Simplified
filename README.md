@@ -11,7 +11,7 @@ Code: <b>USD75OFF</b>
 
 # AWS DevOps Simplified
 
-<a href="https://www.packtpub.com/product/aws-devops-simplified/9781837634460?utm_source=github&utm_medium=repository&utm_campaign=9781786461629"><img src="" alt="" height="256px" align="right"></a>
+<a href="https://www.packtpub.com/product/aws-devops-simplified/9781837634460?utm_source=github&utm_medium=repository&utm_campaign=9781786461629"><img src="https://static.packt-cdn.com/products/9781837634460/cover/smaller" alt="AWS DevOps Simplified" height="256px" align="right"></a>
 
 This is the code repository for [AWS DevOps Simplified](https://www.packtpub.com/product/aws-devops-simplified/9781837634460?utm_source=github&utm_medium=repository&utm_campaign=9781786461629), published by Packt.
 
