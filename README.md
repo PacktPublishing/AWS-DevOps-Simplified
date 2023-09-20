@@ -1,3 +1,14 @@
+
+### [Packt Conference : Put Generative AI to work on Oct 11-13 (Virtual)](https://packt.link/JGIEY)
+
+<b><p align='center'>[![Packt Conference](https://hub.packtpub.com/wp-content/uploads/2023/08/put-generative-ai-to-work-packt.png)](https://packt.link/JGIEY)</p></b> 
+3 Days, 20+ AI Experts, 25+ Workshops and Power Talks 
+
+Code: <b>USD75OFF</b>
+
+
+
+
 # AWS DevOps Simplified
 
 <a href="https://www.packtpub.com/product/aws-devops-simplified/9781837634460?utm_source=github&utm_medium=repository&utm_campaign=9781786461629"><img src="" alt="" height="256px" align="right"></a>
@@ -7,7 +18,7 @@ This is the code repository for [AWS DevOps Simplified](https://www.packtpub.com
 **Build a solid foundation in AWS to deliver enterprise-grade software solutions at scale**
 
 ## What is this book about?
-0
+AWS DevOps Simplified covers in detail the most important AWS services to accelerate your DevOps journey in the cloud. The hands-on examples get you up to speed in no time to build and operate modern enterprise-grade software solutions on AWS, with increased reliability and confidence.
 
 This book covers the following exciting features:
 * Develop a strong and practical understanding of AWS DevOps services
